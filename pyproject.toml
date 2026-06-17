@@ -5,7 +5,7 @@ description = "Safe, review-then-act cleaner for a cluttered Desktop"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Dhivya Vijayakumar", email = "Divi@velvee.ai" }]
+authors = [{ name = "Divi Vijayakumar", email = "divi@velvee.ai" }]
 keywords = ["desktop", "cleanup", "declutter", "files", "organize", "cli"]
 dependencies = []
 classifiers = [
