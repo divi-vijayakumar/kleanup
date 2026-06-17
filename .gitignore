@@ -1,0 +1,18 @@
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Klean runtime state (should never be committed)
+.klean/
+
+# OS cruft
+.DS_Store
+
+# Local tooling / editor config
+.claude/

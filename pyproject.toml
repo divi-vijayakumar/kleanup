@@ -1,0 +1,36 @@
+[project]
+name = "kleanup"
+version = "0.1.0"
+description = "Safe, review-then-act cleaner for a cluttered Desktop"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Dhivya Vijayakumar", email = "Divi@velvee.ai" }]
+keywords = ["desktop", "cleanup", "declutter", "files", "organize", "cli"]
+dependencies = []
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Utilities",
+    "Topic :: Desktop Environment :: File Managers",
+]
+
+[project.urls]
+Homepage = "https://github.com/divi-vijayakumar/kleanup"
+Repository = "https://github.com/divi-vijayakumar/kleanup"
+Issues = "https://github.com/divi-vijayakumar/kleanup/issues"
+
+[project.scripts]
+klean = "klean.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["klean"]
