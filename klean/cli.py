@@ -49,18 +49,47 @@ def _resolve_run(arg: str | None) -> Path | None:
 
 # --- commands --------------------------------------------------------------
 
-def cmd_scan(args) -> int:
+def _build_plan(args):
+    """Scan + analyze (+ optional smart grouping) → a saved plan in a run dir."""
     target = Path(args.target).expanduser() if args.target else config.TARGET_DIR
     print(f"Scanning {target} …")
     entries = scan_dir(target)
     plan = analyze(entries, created=datetime.now().isoformat(),
                    organize=args.organize)
+    if getattr(args, "smart", False):
+        _maybe_smart(plan)
     run_dir = _new_run_dir()
     plan.save(run_dir / "plan.json")
     (run_dir / "report.txt").write_text(report.summary(plan))
+    return plan, run_dir
+
+
+def _maybe_smart(plan) -> None:
+    from . import smart
+    p = smart.provider()
+    if not p:
+        print("  --smart: no LLM provider found "
+              "(set ANTHROPIC_API_KEY or install the `claude` CLI); using rules only.")
+        return
+    print(f"  Smart grouping via {smart.provider_label()} …")
+    n = smart.enrich(plan)
+    print(f"  AI proposed grouping for {n} file(s).")
+
+
+def cmd_scan(args) -> int:
+    plan, run_dir = _build_plan(args)
     print(report.summary(plan))
     print(f"Plan saved to {run_dir / 'plan.json'}")
     print("Next:  klean review   (then  klean apply)")
+    return 0
+
+
+def cmd_ui(args) -> int:
+    plan, run_dir = _build_plan(args)
+    print(report.summary(plan))
+    from . import ui
+    ui.serve(run_dir / "plan.json", Path(plan.target).expanduser(), run_dir,
+             open_browser=not args.no_browser)
     return 0
 
 
@@ -95,6 +124,7 @@ def cmd_review(args) -> int:
         from . import ui
         ui.serve(run_dir / "plan.json",
                  Path(plan.target).expanduser(),
+                 run_dir,
                  open_browser=not args.no_browser)
         approved = sum(1 for it in Plan.load(run_dir / "plan.json").items
                        if it.approved and it.action != Action.KEEP)
@@ -222,7 +252,19 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--target", help="directory to scan (default: ~/Desktop)")
     s.add_argument("--organize", action="store_true",
                    help="also propose moving every file into type folders")
+    s.add_argument("--smart", action="store_true",
+                   help="use an LLM to group related files into named folders")
     s.set_defaults(func=cmd_scan)
+
+    w = sub.add_parser("ui", help="scan and open the web review/apply UI")
+    w.add_argument("--target", help="directory to scan (default: ~/Desktop)")
+    w.add_argument("--organize", action="store_true",
+                   help="also propose moving every file into type folders")
+    w.add_argument("--smart", action="store_true",
+                   help="use an LLM to group related files into named folders")
+    w.add_argument("--no-browser", action="store_true",
+                   help="start the UI server but don't auto-open the browser")
+    w.set_defaults(func=cmd_ui)
 
     r = sub.add_parser("review", help="approve/adjust proposed actions")
     r.add_argument("--run", help="run id (default: latest)")

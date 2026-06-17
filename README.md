@@ -38,8 +38,10 @@ with `python3 -m klean <command>`.
 ## Usage
 
 ```bash
+klean ui                   # scan + open the web UI: pick actions, approve, apply, undo
 klean scan                 # propose a plan for ~/Desktop (no changes)
 klean scan --organize      # also propose sorting every file into type folders
+klean scan --smart         # use an LLM to group related files into named folders
 klean review               # print summary + open the web UI to approve visually
 klean review --terminal    # approve in the terminal instead of the browser
 klean review --approve-high  # auto-approve only the safe, high-confidence ones
@@ -48,20 +50,51 @@ klean undo                 # reverse the most recent apply
 klean status               # list recent runs
 ```
 
+`klean ui` is the one-command path: it scans, prints the terminal summary, and
+opens the browser where you do everything else.
+
 ### Reviewing
 
-`klean review` always prints the grouped summary to the terminal, then opens a
-local web UI (`http://127.0.0.1:<port>`) with image **thumbnails**, checkboxes,
-per-group "approve all", an editable archive destination, and a live "MB that
-leaves the Desktop" counter. Approve in whichever surface you prefer — both
-read and write the same `plan.json`.
+`klean ui` / `klean review` always print the grouped summary to the terminal,
+then open a local web UI (`http://127.0.0.1:<port>`) with image **thumbnails**,
+checkboxes, per-group "approve all", and a live "MB that leaves the Desktop"
+counter. You can manage everything from the browser:
+
+- **Change any file's action** with a per-row dropdown (keep / trash / archive /
+  organize), and type a destination folder for archive/organize.
+- **Apply** the approved actions and **Undo** the last run — both as buttons, no
+  terminal round-trip.
+- Every UI action also **prints its CLI equivalent** to the terminal, so the
+  browser teaches you the command-line workflow.
+
+Approve in whichever surface you prefer — both read and write the same
+`plan.json`.
 
 - `--terminal` — skip the UI, approve group-by-group in the terminal.
 - `--no-browser` — start the UI server but don't auto-open the browser.
 
-The UI is pure stdlib, binds only to `127.0.0.1`, makes no network calls, and
-its thumbnail endpoint only serves image files that resolve inside the scanned
-folder.
+The UI is pure stdlib, binds only to `127.0.0.1`, makes no network calls except
+the optional LLM grouping (below), and its thumbnail endpoint only serves image
+files that resolve inside the scanned folder.
+
+## Optional: LLM-powered grouping (`--smart`)
+
+By default Klean is **100% deterministic and offline** — duplicate, junk, and
+archive decisions need no LLM. `--smart` adds one thing on top: semantically
+**grouping related files into named folders** (e.g. "these 11 are the app-store
+assets → one folder"). It only ever upgrades `keep` items into `move`
+suggestions; it never makes a delete decision.
+
+Provider resolution (first available wins), so no setup is required to try it:
+
+1. **Anthropic API** — if `ANTHROPIC_API_KEY` is set (uses raw HTTPS, no extra
+   dependency). Model defaults to `claude-opus-4-8`; override with `KLEAN_MODEL`.
+2. **System Claude** — if the `claude` CLI is on your `PATH`.
+3. **Neither** — Klean prints a note and proceeds with rules only.
+
+```bash
+klean scan --smart      # or: klean ui --smart
+```
 
 Point it at any folder with `klean scan --target ~/Downloads`.
 
@@ -90,12 +123,13 @@ and can be changed per-item during `review`.
 | `report.py`  | 4 Review  | human-readable grouped summary |
 | `execute.py` | 5 Apply   | move approved items, write `undo.json` |
 | `undo.py`    | 6 Undo    | reverse a run from its log |
-| `cli.py`     | —         | `scan` / `review` / `apply` / `undo` / `status` |
+| `smart.py`   | 2b Enrich | optional LLM grouping (API or `claude` CLI), fails soft |
+| `ui.py`      | 4 Review  | local web UI: thumbnails, per-row actions, apply/undo |
+| `cli.py`     | —         | `scan` / `ui` / `review` / `apply` / `undo` / `status` |
 
-The rules are intentionally deterministic and self-explaining. A semantic LLM
-layer (grouping related files, naming folders) can plug in after `analyze`
-without changing the safety model — the `group` field on each item is reserved
-for it.
+The rules are intentionally deterministic and self-explaining. The optional LLM
+layer (`smart.py`) runs *after* `analyze` and only upgrades `keep` items into
+named `move` groups — it never changes the safety model.
 
 ## Configuration
 
@@ -104,3 +138,5 @@ Environment variables (see `klean/config.py`):
 - `KLEAN_TARGET` — folder to clean (default `~/Desktop`)
 - `KLEAN_HOME` — where plans/logs/quarantine live (default `~/.klean`)
 - `KLEAN_ARCHIVE` — default archive destination (default `~/Archive`)
+- `ANTHROPIC_API_KEY` — enables `--smart` grouping via the Anthropic API
+- `KLEAN_MODEL` — model for `--smart` (default `claude-opus-4-8`)
